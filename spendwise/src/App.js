@@ -571,6 +571,7 @@ const CategoriesPage = ({ token, addToast }) => {
   };
 
   const palette = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
+  const EMOJIS = ["🍔","🚗","💡","🛒","🏠","🎓","💊","✈️","🎬","📱","☕","🍿","⚽","🎮","🧾","🏋️","🎁","🐾","💼","🏥","🚌","👕","📦","💸"];
 
   return (
     <div>
@@ -618,7 +619,29 @@ const CategoriesPage = ({ token, addToast }) => {
           <form onSubmit={submit}>
             <Input label="Name" placeholder="Food, Travel, Bills..." value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
             <Input label="Description" placeholder="Optional description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-            <Input label="Icon (emoji)" placeholder="🍔 🚗 💡" value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} />
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: "'DM Sans', sans-serif" }}>Icon</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 140, overflowY: "auto", padding: 10, border: "1.5px solid #e2e8f0", borderRadius: 10, background: "#f8fafc" }}>
+                {EMOJIS.map(em => (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => setForm({ ...form, icon: em })}
+                    style={{
+                      width: 40, height: 40, borderRadius: 8, border: form.icon === em ? "2px solid #6366f1" : "1.5px solid #e2e8f0",
+                      background: form.icon === em ? "#eef2ff" : "#fff", cursor: "pointer", fontSize: 20,
+                      display: "flex", alignItems: "center", justifyContent: "center"
+                    }}
+                  >{em}</button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button type="button" onClick={() => setForm({ ...form, icon: "" })} style={{ padding: "4px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  Remove Icon
+                </button>
+                <span style={{ fontSize: 12, color: "#94a3b8", alignSelf: "center" }}>{form.icon ? `Selected: ${form.icon}` : "No icon selected"}</span>
+              </div>
+            </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
               <Btn type="button" variant="secondary" onClick={() => { setShowModal(false); setEditing(null); }}>Cancel</Btn>
               <Btn type="submit" loading={loading}>{editing ? "Update" : "Create"}</Btn>
