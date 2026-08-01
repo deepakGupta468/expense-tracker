@@ -41,11 +41,16 @@ public class User implements UserDetails {
 
     private LocalDateTime updatedAt;
 
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    @Builder.Default
+    private Boolean isActive = true;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Expense> expenses;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Budget> budgets;
+
 
     @PrePersist
     protected void onCreate() {
@@ -78,5 +83,5 @@ public class User implements UserDetails {
     public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() { return true; }
+    public boolean isEnabled() { return Boolean.TRUE.equals(this.isActive); }
 }

@@ -32,6 +32,7 @@ const Icon = ({ name, size = 18 }) => {
     check: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
     eye: "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
     wallet: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+    user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
   };
   return (
     <svg width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -222,6 +223,10 @@ const Sidebar = ({ active, setActive, user, onLogout }) => {
     { id: "budgets", label: "Budgets", icon: "budget" },
     { id: "reports", label: "Reports", icon: "report" },
   ];
+
+  if (user?.role === 'ADMIN') {
+    nav.push({ id: "admin", label: "Admin", icon: "user" });
+  }
 
   return (
     <div style={{
@@ -445,7 +450,7 @@ const ExpensesPage = ({ token, addToast }) => {
   };
 
   const del = async (id) => {
-    if (!window.confirm("Delete this expense?")) return;
+    if (!confirm("Delete this expense?")) return;
     try { await api(`/expenses/${id}`, { method: "DELETE" }, token); addToast("Deleted!", "success"); load(); }
     catch (e) { addToast(e.message, "error"); }
   };
@@ -560,7 +565,7 @@ const CategoriesPage = ({ token, addToast }) => {
   };
 
   const del = async (id) => {
-    if (!window.confirm("Delete this category?")) return;
+    if (!confirm("Delete this category?")) return;
     try { await api(`/categories/${id}`, { method: "DELETE" }, token); addToast("Deleted!", "success"); load(); }
     catch (e) { addToast(e.message, "error"); }
   };
@@ -655,7 +660,7 @@ const BudgetsPage = ({ token, addToast }) => {
   };
 
   const del = async (id) => {
-    if (!window.confirm("Delete this budget?")) return;
+    if (!confirm("Delete this budget?")) return;
     try { await api(`/budgets/${id}`, { method: "DELETE" }, token); addToast("Deleted!", "success"); load(); }
     catch (e) { addToast(e.message, "error"); }
   };
@@ -870,6 +875,91 @@ const ReportsPage = ({ token, addToast }) => {
   );
 };
 
+// ─── ADMIN PAGE ────────────────────────────────────────────────────────────
+const AdminPage = ({ token, addToast }) => {
+    const [users, setUsers] = useState([]);
+
+    const fetchUsers = async () => {
+        try {
+            const response = await api('/admin/users', {}, token);
+            setUsers(response);
+        } catch (error) {
+            addToast(error.message, "error");
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, [token]);
+
+    const handleDeactivate = async (userId) => {
+        try {
+            await api(`/admin/users/${userId}/deactivate`, { method: 'PUT' }, token);
+            setUsers(users.map(user => user.id === userId ? { ...user, isActive: false } : user));
+            addToast("User deactivated", "success");
+        } catch (error) {
+            addToast(error.message, "error");
+        }
+    };
+
+    const handleActivate = async (userId) => {
+        try {
+            await api(`/admin/users/${userId}/activate`, { method: 'PUT' }, token);
+            setUsers(users.map(user => user.id === userId ? { ...user, isActive: true } : user));
+            addToast("User activated", "success");
+        } catch (error) {
+            addToast(error.message, "error");
+        }
+    };
+
+    const handleDelete = async (userId) => {
+        try {
+            await api(`/admin/users/${userId}`, { method: 'DELETE' }, token);
+            setUsers(users.filter(user => user.id !== userId));
+            addToast("User deleted", "success");
+        } catch (error) {
+            addToast(error.message, "error");
+        }
+    };
+
+    return (
+        <div>
+            <h2>Admin - User Management</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Email</th>
+                        <th>Full Name</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {users.map(user => (
+                        <tr key={user.id}>
+                            <td>{user.id}</td>
+                            <td>{user.email}</td>
+                            <td>{user.fullName}</td>
+                            <td>{user.role}</td>
+                            <td>{user.isActive ? 'Active' : 'Inactive'}</td>
+                            <td>
+                                {user.isActive ? (
+                                    <button onClick={() => handleDeactivate(user.id)}>Deactivate</button>
+                                ) : (
+                                    <button onClick={() => handleActivate(user.id)}>Activate</button>
+                                )}
+                                <button onClick={() => handleDelete(user.id)}>Delete</button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
   const [token, setToken] = useState(null);
@@ -894,7 +984,7 @@ export default function App() {
     </>
   );
 
-  const pages = { dashboard: Dashboard, expenses: ExpensesPage, categories: CategoriesPage, budgets: BudgetsPage, reports: ReportsPage };
+  const pages = { dashboard: Dashboard, expenses: ExpensesPage, categories: CategoriesPage, budgets: BudgetsPage, reports: ReportsPage, admin: AdminPage };
   const Page = pages[active];
 
   return (
