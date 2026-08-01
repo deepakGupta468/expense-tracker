@@ -147,13 +147,3 @@ VALUES ('admin@example.com', '<bcrypt-hash>', 'Admin', 'ADMIN', TRUE, NOW(), NOW
 ```bash
 mvn test
 ```
-
-## 🐛 Common Issues
-
-| Issue | Fix |
-|-------|-----|
-| Admin tab not visible | DB `role` must be exactly `ADMIN`; restart backend |
-| "Cannot login" after admin changes | Ensure `is_active` is `TRUE` in DB |
-| Port 8080 already in use | Stop old process, then `mvn spring-boot:run` |
-| Frontend shows blank / old UI | `npm start` from `spendwise/`, hard refresh `Ctrl+Shift+R` |
-| Deleted user's login still works | Stop — JWT filter blocks deactivated users |
