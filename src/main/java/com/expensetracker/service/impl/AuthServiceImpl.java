@@ -38,7 +38,7 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         userRepository.save(user);
-        String token = jwtUtil.generateToken(user);
+        String token = jwtUtil.generateToken(user.getId());
 
         return AuthResponse.builder()
                 .token(token)
@@ -57,7 +57,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("User not found"));
 
-        String token = jwtUtil.generateToken(user);
+        String token = jwtUtil.generateToken(user.getId());
 
         return AuthResponse.builder()
                 .token(token)

@@ -136,9 +136,13 @@ const AuthPage = ({ onLogin }) => {
     e.preventDefault();
     setLoading(true); setError("");
     try {
+      const isLogin = mode === "login";
+      const body = isLogin
+        ? { email: form.email, password: form.password }
+        : form;
       const data = await api(
-        mode === "login" ? "/auth/login" : "/auth/register",
-        { method: "POST", body: JSON.stringify(form) }
+        isLogin ? "/auth/login" : "/auth/register",
+        { method: "POST", body: JSON.stringify(body) }
       );
       onLogin(data.token, data);
     } catch (err) {
