@@ -2,10 +2,12 @@ package com.expensetracker.service.impl;
 
 import com.expensetracker.dto.request.ExpenseRequest;
 import com.expensetracker.dto.response.ExpenseResponse;
+import com.expensetracker.entity.Budget;
 import com.expensetracker.entity.Category;
 import com.expensetracker.entity.Expense;
 import com.expensetracker.entity.User;
 import com.expensetracker.exception.ResourceNotFoundException;
+import com.expensetracker.repository.BudgetRepository;
 import com.expensetracker.repository.CategoryRepository;
 import com.expensetracker.repository.ExpenseRepository;
 import com.expensetracker.repository.UserRepository;
@@ -14,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +28,8 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final BudgetRepository budgetRepository;
+    private final EmailServiceImpl emailService;
 
     @Override
     public ExpenseResponse createExpense(ExpenseRequest request, String userEmail) {
@@ -40,7 +45,9 @@ public class ExpenseServiceImpl implements ExpenseService {
                 .user(user)
                 .build();
 
-        return mapToResponse(expenseRepository.save(expense));
+        Expense saved = expenseRepository.save(expense);
+        checkBudgetAndNotify(user, category, request.getExpenseDate());
+        return mapToResponse(saved);
     }
 
     @Override
@@ -106,6 +113,42 @@ public class ExpenseServiceImpl implements ExpenseService {
         return expenseRepository.findByUserAndExpenseDateOrderByExpenseDateDesc(user, date).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    private void checkBudgetAndNotify(User user, Category category, LocalDate expenseDate) {
+        int year = expenseDate.getYear();
+        int month = expenseDate.getMonthValue();
+
+        if (category != null) {
+            budgetRepository.findByUserAndCategoryAndMonthAndYear(user, category, month, year)
+                    .ifPresent(budget -> {
+                        BigDecimal spent = expenseRepository.sumByUserAndCategoryAndMonth(user, category, year, month);
+                        if (spent != null && spent.compareTo(budget.getMonthlyLimit()) > 0) {
+                            sendBudgetAlert(user, budget.getMonthlyLimit(), spent, category.getName(), month, year);
+                        }
+                    });
+        }
+
+        budgetRepository.findByUserAndCategoryIsNullAndMonthAndYear(user, month, year)
+                .ifPresent(budget -> {
+                    BigDecimal spent = expenseRepository.sumByUserAndMonthAndYear(user, year, month);
+                    if (spent != null && spent.compareTo(budget.getMonthlyLimit()) > 0) {
+                        sendBudgetAlert(user, budget.getMonthlyLimit(), spent, "Overall", month, year);
+                    }
+                });
+    }
+
+    private void sendBudgetAlert(User user, BigDecimal limit, BigDecimal spent,
+                                 String categoryName, int month, int year) {
+        emailService.sendBudgetAlert(
+                user.getEmail(),
+                user.getFullName(),
+                categoryName,
+                limit,
+                spent,
+                month,
+                year
+        );
     }
 
     private User getUser(String email) {
