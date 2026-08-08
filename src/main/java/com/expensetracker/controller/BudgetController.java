@@ -1,14 +1,15 @@
 package com.expensetracker.controller;
 
-import com.expensetracker.dto.request.BudgetRequest;
-import com.expensetracker.dto.response.BudgetResponse;
-import com.expensetracker.service.BudgetService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/budgets")
 @RequiredArgsConstructor
+@Validated
 public class BudgetController {
 
     private final BudgetService budgetService;
@@ -38,15 +40,15 @@ public class BudgetController {
 
     @GetMapping("/monthly")
     public ResponseEntity<List<BudgetResponse>> getBudgetsByMonth(
-            @RequestParam int month,
-            @RequestParam int year,
+            @RequestParam @Min(1) @Max(12) int month,
+            @RequestParam @Min(2000) @Max(2099) int year,
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(budgetService.getBudgetsByMonth(month, year, userDetails.getUsername()));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<BudgetResponse> updateBudget(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @RequestBody BudgetRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(budgetService.updateBudget(id, request, userDetails.getUsername()));
@@ -54,7 +56,7 @@ public class BudgetController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBudget(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
         budgetService.deleteBudget(id, userDetails.getUsername());
         return ResponseEntity.noContent().build();

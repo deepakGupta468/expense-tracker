@@ -19,6 +19,7 @@ public class BudgetRequest {
 
     @NotNull(message = "Year is required")
     @Min(value = 2000, message = "Year must be valid")
+    @Max(value = 2099, message = "Year must be valid")
     private Integer year;
 
     private Long categoryId; // null = overall budget

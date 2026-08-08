@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { api } from "../api";
 import Icon from "../components/Icon";
 import { Input, PasswordInput, Btn } from "../components/FormControls";
@@ -7,17 +7,34 @@ import { Input, PasswordInput, Btn } from "../components/FormControls";
 const AuthPage = ({ onLogin }) => {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const validate = () => {
+    const errs = {};
+    if (mode === "register") {
+      if (!form.fullName.trim()) errs.fullName = "Full name is required";
+      else if (form.fullName.trim().length < 2) errs.fullName = "Full name must be at least 2 characters";
+    }
+    if (!form.email.trim()) errs.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errs.email = "Please enter a valid email address";
+    if (!form.password) errs.password = "Password is required";
+    else if (mode === "register" && form.password.length < 6) errs.password = "Password must be at least 6 characters";
+    return errs;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     setLoading(true); setError("");
     try {
       const isLogin = mode === "login";
       const body = isLogin
-        ? { email: form.email, password: form.password }
-        : form;
+        ? { email: form.email.trim(), password: form.password }
+        : { fullName: form.fullName.trim(), email: form.email.trim(), password: form.password };
       const data = await api(
         isLogin ? "/auth/login" : "/auth/register",
         { method: "POST", body: JSON.stringify(body) }
@@ -65,7 +82,7 @@ const AuthPage = ({ onLogin }) => {
           {/* Tabs */}
           <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 4, marginBottom: 28 }}>
             {["login", "register"].map(m => (
-              <button key={m} onClick={() => setMode(m)} style={{
+              <button key={m} onClick={() => { setMode(m); setErrors({}); setError(""); }} style={{
                 flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer",
                 fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, transition: "all .2s",
                 background: mode === m ? "#fff" : "transparent",
@@ -75,10 +92,10 @@ const AuthPage = ({ onLogin }) => {
             ))}
           </div>
 
-          <form onSubmit={submit}>
-            {mode === "register" && <Input label="Full Name" placeholder="John Doe" value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} required />}
-            <Input label="Email Address" type="email" placeholder="you@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-            <PasswordInput label="Password" placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+          <form onSubmit={submit} noValidate>
+            {mode === "register" && <Input label="Full Name" placeholder="John Doe" value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} error={errors.fullName} required />}
+            <Input label="Email Address" type="email" placeholder="you@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} error={errors.email} required />
+            <PasswordInput label="Password" placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} error={errors.password} required />
 
             {error && (
               <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "10px 14px", marginBottom: 16, color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>

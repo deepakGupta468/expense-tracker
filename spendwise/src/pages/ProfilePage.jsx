@@ -7,6 +7,8 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
   const [profile, setProfile] = useState(null);
   const [name, setName] = useState("");
   const [pw, setPw] = useState({ current: "", next: "" });
+  const [nameError, setNameError] = useState("");
+  const [pwErrors, setPwErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -24,11 +26,16 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
 
   const handleUpdateName = async (e) => {
     e.preventDefault();
+    if (!name.trim()) { setNameError("Full name is required"); return; }
+    if (name.trim().length < 2) { setNameError("Full name must be at least 2 characters"); return; }
+    if (name.trim().length > 100) { setNameError("Full name must not exceed 100 characters"); return; }
     setLoading(true);
     try {
-      const res = await api('/profile', { method: 'PUT', body: JSON.stringify({ fullName: name }) }, token);
+      const res = await api('/profile', { method: 'PUT', body: JSON.stringify({ fullName: name.trim() }) }, token);
       setProfile(res);
       setUser({ ...user, fullName: res.fullName });
+      setName(res.fullName);
+      setNameError("");
       addToast("Profile updated", "success");
     } catch (err) {
       addToast(err.message, "error");
@@ -39,6 +46,13 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
+    const errs = {};
+    if (!pw.current) errs.current = "Current password is required";
+    if (!pw.next) errs.next = "New password is required";
+    else if (pw.next.length < 6) errs.next = "New password must be at least 6 characters";
+    else if (pw.current === pw.next) errs.next = "New password must be different from current password";
+    setPwErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     setLoading(true);
     try {
       await api('/profile/password', {
@@ -46,6 +60,7 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
         body: JSON.stringify({ currentPassword: pw.current, newPassword: pw.next })
       }, token);
       setPw({ current: "", next: "" });
+      setPwErrors({});
       addToast("Password changed", "success");
     } catch (err) {
       addToast(err.message, "error");
@@ -93,12 +108,12 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
             </div>
           )}
 
-          <form onSubmit={handleUpdateName}>
+          <form onSubmit={handleUpdateName} noValidate>
             <label style={{ fontSize: 13, fontWeight: 600, color: "#334155", display: "block", marginBottom: 6 }}>
               Full Name
             </label>
             <div style={{ display: "flex", gap: 10 }}>
-              <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} required />
+              <input value={name} onChange={e => { setName(e.target.value); setNameError(""); }} style={{ ...inputStyle, borderColor: nameError ? "#ef4444" : "#e2e8f0" }} required />
               <button disabled={loading} style={{
                 padding: "0 20px", borderRadius: 10, border: "none", cursor: "pointer", whiteSpace: "nowrap",
                 background: "#6366f1", color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: "'DM Sans', sans-serif"
@@ -106,18 +121,19 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
                 {loading ? "Saving..." : "Save"}
               </button>
             </div>
+            {nameError && <div style={{ marginTop: 5, fontSize: 12, color: "#ef4444", fontWeight: 500 }}>{nameError}</div>}
           </form>
         </div>
 
         {/* Change password */}
         <div style={{ background: "#fff", borderRadius: 16, padding: 24, border: "1px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,.06)" }}>
           <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, margin: "0 0 18px", color: "#0f172a" }}>Change Password</h3>
-          <form onSubmit={handleChangePassword} style={{ display: "grid", gap: 14 }}>
+          <form onSubmit={handleChangePassword} style={{ display: "grid", gap: 14 }} noValidate>
             <div>
-              <PasswordInput label="Current Password" value={pw.current} onChange={e => setPw({ ...pw, current: e.target.value })} required />
+              <PasswordInput label="Current Password" value={pw.current} onChange={e => setPw({ ...pw, current: e.target.value })} error={pwErrors.current} required />
             </div>
             <div>
-              <PasswordInput label="New Password" value={pw.next} onChange={e => setPw({ ...pw, next: e.target.value })} required minLength={6} />
+              <PasswordInput label="New Password" value={pw.next} onChange={e => setPw({ ...pw, next: e.target.value })} error={pwErrors.next} required minLength={6} />
             </div>
             <button disabled={loading} style={{
               padding: "12px", borderRadius: 10, border: "none", cursor: "pointer",

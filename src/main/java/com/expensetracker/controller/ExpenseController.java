@@ -2,14 +2,17 @@ package com.expensetracker.controller;
 
 import com.expensetracker.dto.request.ExpenseRequest;
 import com.expensetracker.dto.response.ExpenseResponse;
+import com.expensetracker.exception.BadRequestException;
 import com.expensetracker.service.ExpenseService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -18,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/expenses")
 @RequiredArgsConstructor
+@Validated
 public class ExpenseController {
 
     private final ExpenseService expenseService;
@@ -40,14 +44,14 @@ public class ExpenseController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ExpenseResponse> getExpenseById(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(expenseService.getExpenseById(id, userDetails.getUsername()));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ExpenseResponse> updateExpense(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @RequestBody ExpenseRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(expenseService.updateExpense(id, request, userDetails.getUsername()));
@@ -55,7 +59,7 @@ public class ExpenseController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteExpense(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @AuthenticationPrincipal UserDetails userDetails) {
         expenseService.deleteExpense(id, userDetails.getUsername());
         return ResponseEntity.noContent().build();
@@ -63,7 +67,7 @@ public class ExpenseController {
 
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ExpenseResponse>> getByCategory(
-            @PathVariable Long categoryId,
+            @PathVariable @Positive Long categoryId,
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(expenseService.getExpensesByCategory(categoryId, userDetails.getUsername()));
     }
@@ -80,6 +84,9 @@ public class ExpenseController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @AuthenticationPrincipal UserDetails userDetails) {
+        if (startDate.isAfter(endDate)) {
+            throw new BadRequestException("Start date cannot be after end date");
+        }
         return ResponseEntity.ok(expenseService.getExpensesByDateRange(startDate, endDate, userDetails.getUsername()));
     }
 }

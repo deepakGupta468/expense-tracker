@@ -10,6 +10,7 @@ const CategoriesPage = ({ token, addToast }) => {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const [form, setForm] = useState({ name: "", description: "", icon: "" });
 
   const load = useCallback(async () => {
@@ -19,17 +20,31 @@ const CategoriesPage = ({ token, addToast }) => {
 
   useEffect(() => { load(); }, [load]);
 
+  const validate = () => {
+    const errs = {};
+    if (!form.name.trim()) errs.name = "Category name is required";
+    else if (form.name.trim().length < 2) errs.name = "Category name must be at least 2 characters";
+    else if (form.name.trim().length > 50) errs.name = "Category name must not exceed 50 characters";
+    if (form.description && form.description.length > 200) errs.description = "Description must not exceed 200 characters";
+    return errs;
+  };
+
   const submit = async (e) => {
-    e.preventDefault(); setLoading(true);
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    setLoading(true);
     try {
+      const payload = { ...form, name: form.name.trim() };
       if (editing) {
-        await api(`/categories/${editing.id}`, { method: "PUT", body: JSON.stringify(form) }, token);
+        await api(`/categories/${editing.id}`, { method: "PUT", body: JSON.stringify(payload) }, token);
         addToast("Category updated!", "success");
       } else {
-        await api("/categories", { method: "POST", body: JSON.stringify(form) }, token);
+        await api("/categories", { method: "POST", body: JSON.stringify(payload) }, token);
         addToast("Category created!", "success");
       }
-      setShowModal(false); setEditing(null); setForm({ name: "", description: "", icon: "" }); load();
+      setShowModal(false); setEditing(null); setErrors({}); setForm({ name: "", description: "", icon: "" }); load();
     } catch (err) { addToast(err.message, "error"); } finally { setLoading(false); }
   };
 
@@ -49,7 +64,7 @@ const CategoriesPage = ({ token, addToast }) => {
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, fontFamily: "'Sora', sans-serif", color: "#0f172a" }}>Categories</h1>
           <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>{cats.length} categories</p>
         </div>
-        <Btn onClick={() => { setEditing(null); setForm({ name: "", description: "", icon: "" }); setShowModal(true); }}>
+        <Btn onClick={() => { setEditing(null); setErrors({}); setForm({ name: "", description: "", icon: "" }); setShowModal(true); }}>
           <Icon name="plus" size={15} /> New Category
         </Btn>
       </div>
@@ -70,7 +85,7 @@ const CategoriesPage = ({ token, addToast }) => {
             <div style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", marginBottom: 4 }}>{c.name}</div>
             {c.description && <div style={{ color: "#94a3b8", fontSize: 13 }}>{c.description}</div>}
             <div style={{ display: "flex", gap: 6, marginTop: 16 }}>
-              <button onClick={() => { setEditing(c); setForm({ name: c.name, description: c.description || "", icon: c.icon || "" }); setShowModal(true); }}
+              <button onClick={() => { setEditing(c); setErrors({}); setForm({ name: c.name, description: c.description || "", icon: c.icon || "" }); setShowModal(true); }}
                 style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "1.5px solid #e2e8f0", cursor: "pointer", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 500 }}>
                 Edit
               </button>
@@ -84,10 +99,10 @@ const CategoriesPage = ({ token, addToast }) => {
       </div>
 
       {showModal && (
-        <Modal title={editing ? "Edit Category" : "New Category"} onClose={() => { setShowModal(false); setEditing(null); }}>
-          <form onSubmit={submit}>
-            <Input label="Name" placeholder="Food, Travel, Bills..." value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-            <Input label="Description" placeholder="Optional description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+        <Modal title={editing ? "Edit Category" : "New Category"} onClose={() => { setShowModal(false); setEditing(null); setErrors({}); }}>
+          <form onSubmit={submit} noValidate>
+            <Input label="Name" placeholder="Food, Travel, Bills..." value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} error={errors.name} required />
+            <Input label="Description" placeholder="Optional description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} error={errors.description} />
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: "'DM Sans', sans-serif" }}>Icon</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 140, overflowY: "auto", padding: 10, border: "1.5px solid #e2e8f0", borderRadius: 10, background: "#f8fafc" }}>
@@ -112,7 +127,7 @@ const CategoriesPage = ({ token, addToast }) => {
               </div>
             </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
-              <Btn type="button" variant="secondary" onClick={() => { setShowModal(false); setEditing(null); }}>Cancel</Btn>
+              <Btn type="button" variant="secondary" onClick={() => { setShowModal(false); setEditing(null); setErrors({}); }}>Cancel</Btn>
               <Btn type="submit" loading={loading}>{editing ? "Update" : "Create"}</Btn>
             </div>
           </form>

@@ -10,6 +10,7 @@ const BudgetsPage = ({ token, addToast }) => {
   const [categories, setCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const now = new Date();
   const [form, setForm] = useState({ monthlyLimit: "", month: now.getMonth() + 1, year: now.getFullYear(), categoryId: "" });
 
@@ -22,14 +23,28 @@ const BudgetsPage = ({ token, addToast }) => {
 
   useEffect(() => { load(); }, [load]);
 
+  const validate = () => {
+    const errs = {};
+    const limit = parseFloat(form.monthlyLimit);
+    if (!form.monthlyLimit) errs.monthlyLimit = "Monthly limit is required";
+    else if (isNaN(limit) || limit <= 0) errs.monthlyLimit = "Monthly limit must be greater than 0";
+    if (!form.year) errs.year = "Year is required";
+    else if (isNaN(form.year) || form.year < 2000 || form.year > 2099) errs.year = "Year must be between 2000 and 2099";
+    return errs;
+  };
+
   const submit = async (e) => {
-    e.preventDefault(); setLoading(true);
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    setLoading(true);
     try {
       const payload = { ...form, monthlyLimit: parseFloat(form.monthlyLimit), month: parseInt(form.month), year: parseInt(form.year) };
       if (!payload.categoryId) delete payload.categoryId;
       else payload.categoryId = parseInt(payload.categoryId);
       await api("/budgets", { method: "POST", body: JSON.stringify(payload) }, token);
-      addToast("Budget set!", "success"); setShowModal(false); setForm({ monthlyLimit: "", month: now.getMonth() + 1, year: now.getFullYear(), categoryId: "" }); load();
+      addToast("Budget set!", "success"); setShowModal(false); setErrors({}); setForm({ monthlyLimit: "", month: now.getMonth() + 1, year: now.getFullYear(), categoryId: "" }); load();
     } catch (err) { addToast(err.message, "error"); } finally { setLoading(false); }
   };
 
@@ -48,7 +63,7 @@ const BudgetsPage = ({ token, addToast }) => {
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, fontFamily: "'Sora', sans-serif", color: "#0f172a" }}>Budgets</h1>
           <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>Monitor your spending limits</p>
         </div>
-        <Btn onClick={() => setShowModal(true)}><Icon name="plus" size={15} /> Set Budget</Btn>
+        <Btn onClick={() => { setErrors({}); setShowModal(true); }}><Icon name="plus" size={15} /> Set Budget</Btn>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
@@ -92,23 +107,23 @@ const BudgetsPage = ({ token, addToast }) => {
       </div>
 
       {showModal && (
-        <Modal title="Set Budget" onClose={() => setShowModal(false)}>
-          <form onSubmit={submit}>
-            <Input label="Monthly Limit (₹)" type="number" step="0.01" min="1" placeholder="5000.00" value={form.monthlyLimit} onChange={e => setForm({ ...form, monthlyLimit: e.target.value })} required />
+        <Modal title="Set Budget" onClose={() => { setShowModal(false); setErrors({}); }}>
+          <form onSubmit={submit} noValidate>
+            <Input label="Monthly Limit (₹)" type="number" step="0.01" min="1" placeholder="5000.00" value={form.monthlyLimit} onChange={e => setForm({ ...form, monthlyLimit: e.target.value })} error={errors.monthlyLimit} required />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Select label="Month" value={form.month} onChange={e => setForm({ ...form, month: e.target.value })}>
                 {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
                   <option key={i} value={i + 1}>{m}</option>
                 ))}
               </Select>
-              <Input label="Year" type="number" min="2000" value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} required />
+              <Input label="Year" type="number" min="2000" value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} error={errors.year} required />
             </div>
             <Select label="Category (optional — leave blank for overall)" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}>
               <option value="">Overall Budget</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
-              <Btn type="button" variant="secondary" onClick={() => setShowModal(false)}>Cancel</Btn>
+              <Btn type="button" variant="secondary" onClick={() => { setShowModal(false); setErrors({}); }}>Cancel</Btn>
               <Btn type="submit" loading={loading}>Set Budget</Btn>
             </div>
           </form>

@@ -2,30 +2,31 @@ import React, { useState } from "react";
 import Icon from "./Icon";
 
 // ─── FORM COMPONENTS ────────────────────────────────────────────────────────
-const Input = ({ label, ...props }) => (
+const Input = ({ label, error, ...props }) => (
   <div style={{ marginBottom: 16 }}>
     {label && <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: "'DM Sans', sans-serif" }}>{label}</label>}
-    <input {...props} style={{
-      width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+    <input aria-invalid={!!error} {...props} style={{
+      width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${error ? "#ef4444" : "#e2e8f0"}`,
       fontSize: 14, fontFamily: "'DM Sans', sans-serif", color: "#0f172a", outline: "none",
       transition: "border-color .2s", background: "#f8fafc", boxSizing: "border-box",
       ...props.style
-    }} onFocus={e => e.target.style.borderColor = "#6366f1"} onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
+    }} onFocus={e => e.target.style.borderColor = "#6366f1"} onBlur={e => e.target.style.borderColor = error ? "#ef4444" : "#e2e8f0"} />
+    {error && <div style={{ marginTop: 5, fontSize: 12, color: "#ef4444", fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>{error}</div>}
   </div>
 );
 
-const PasswordInput = ({ label, style, ...props }) => {
+const PasswordInput = ({ label, style, error, ...props }) => {
   const [show, setShow] = useState(false);
   return (
     <div style={{ marginBottom: 16, ...style }}>
       {label && <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: "'DM Sans', sans-serif" }}>{label}</label>}
       <div style={{ position: "relative" }}>
-        <input {...props} type={show ? "text" : "password"} style={{
-          width: "100%", padding: "10px 14px", paddingRight: 44, borderRadius: 10, border: "1.5px solid #e2e8f0",
+        <input {...props} type={show ? "text" : "password"} aria-invalid={!!error} style={{
+          width: "100%", padding: "10px 14px", paddingRight: 44, borderRadius: 10, border: `1.5px solid ${error ? "#ef4444" : "#e2e8f0"}`,
           fontSize: 14, fontFamily: "'DM Sans', sans-serif", color: "#0f172a", outline: "none",
           transition: "border-color .2s", background: "#f8fafc", boxSizing: "border-box",
           ...props.style
-        }} onFocus={e => e.target.style.borderColor = "#6366f1"} onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
+        }} onFocus={e => e.target.style.borderColor = "#6366f1"} onBlur={e => e.target.style.borderColor = error ? "#ef4444" : "#e2e8f0"} />
         <button type="button" onClick={() => setShow(!show)} title={show ? "Hide password" : "Show password"} style={{
           position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
           background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 6,
@@ -34,18 +35,20 @@ const PasswordInput = ({ label, style, ...props }) => {
           <Icon name={show ? "eyeOff" : "eye"} size={18} />
         </button>
       </div>
+      {error && <div style={{ marginTop: 5, fontSize: 12, color: "#ef4444", fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>{error}</div>}
     </div>
   );
 };
 
-const Select = ({ label, children, ...props }) => (
+const Select = ({ label, error, children, ...props }) => (
   <div style={{ marginBottom: 16 }}>
     {label && <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: "'DM Sans', sans-serif" }}>{label}</label>}
-    <select {...props} style={{
-      width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+    <select {...props} aria-invalid={!!error} style={{
+      width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${error ? "#ef4444" : "#e2e8f0"}`,
       fontSize: 14, fontFamily: "'DM Sans', sans-serif", color: "#0f172a", outline: "none",
       background: "#f8fafc", boxSizing: "border-box", cursor: "pointer"
     }}>{children}</select>
+    {error && <div style={{ marginTop: 5, fontSize: 12, color: "#ef4444", fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>{error}</div>}
   </div>
 );
 
