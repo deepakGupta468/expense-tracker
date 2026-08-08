@@ -31,6 +31,7 @@ const Icon = ({ name, size = 18 }) => {
     alert: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
     check: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
     eye: "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
+    eyeOff: "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l4.59 4.59m8.82 8.82L21 21",
     wallet: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
     user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
   };
@@ -95,6 +96,30 @@ const Input = ({ label, ...props }) => (
     }} onFocus={e => e.target.style.borderColor = "#6366f1"} onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
   </div>
 );
+
+const PasswordInput = ({ label, style, ...props }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ marginBottom: 16, ...style }}>
+      {label && <label style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: "'DM Sans', sans-serif" }}>{label}</label>}
+      <div style={{ position: "relative" }}>
+        <input {...props} type={show ? "text" : "password"} style={{
+          width: "100%", padding: "10px 14px", paddingRight: 44, borderRadius: 10, border: "1.5px solid #e2e8f0",
+          fontSize: 14, fontFamily: "'DM Sans', sans-serif", color: "#0f172a", outline: "none",
+          transition: "border-color .2s", background: "#f8fafc", boxSizing: "border-box",
+          ...props.style
+        }} onFocus={e => e.target.style.borderColor = "#6366f1"} onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
+        <button type="button" onClick={() => setShow(!show)} title={show ? "Hide password" : "Show password"} style={{
+          position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+          background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 6,
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
+          <Icon name={show ? "eyeOff" : "eye"} size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const Select = ({ label, children, ...props }) => (
   <div style={{ marginBottom: 16 }}>
@@ -200,7 +225,7 @@ const AuthPage = ({ onLogin }) => {
           <form onSubmit={submit}>
             {mode === "register" && <Input label="Full Name" placeholder="John Doe" value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} required />}
             <Input label="Email Address" type="email" placeholder="you@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-            <Input label="Password" type="password" placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+            <PasswordInput label="Password" placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
 
             {error && (
               <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8, padding: "10px 14px", marginBottom: 16, color: "#dc2626", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
@@ -226,6 +251,7 @@ const Sidebar = ({ active, setActive, user, onLogout }) => {
     { id: "categories", label: "Categories", icon: "category" },
     { id: "budgets", label: "Budgets", icon: "budget" },
     { id: "reports", label: "Reports", icon: "report" },
+    { id: "profile", label: "Profile", icon: "user" },
   ];
 
   if (user?.role === 'ADMIN') {
@@ -1034,6 +1060,136 @@ const AdminPage = ({ token, addToast }) => {
     );
 };
 
+// ─── PROFILE PAGE ───────────────────────────────────────────────────────────
+const ProfilePage = ({ token, addToast, user, setUser }) => {
+  const [profile, setProfile] = useState(null);
+  const [name, setName] = useState("");
+  const [pw, setPw] = useState({ current: "", next: "" });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api('/profile/me', {}, token);
+        setProfile(res);
+        setName(res.fullName);
+      } catch (e) {
+        addToast(e.message, "error");
+      }
+    };
+    load();
+  }, [token, addToast]);
+
+  const handleUpdateName = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await api('/profile', { method: 'PUT', body: JSON.stringify({ fullName: name }) }, token);
+      setProfile(res);
+      setUser({ ...user, fullName: res.fullName });
+      addToast("Profile updated", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api('/profile/password', {
+        method: 'PUT',
+        body: JSON.stringify({ currentPassword: pw.current, newPassword: pw.next })
+      }, token);
+      setPw({ current: "", next: "" });
+      addToast("Password changed", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputStyle = {
+    width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #e2e8f0",
+    fontFamily: "'DM Sans', sans-serif", fontSize: 14, background: "#fff"
+  };
+
+  return (
+    <div style={{ animation: "slideIn .3s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 26, margin: 0, color: "#0f172a" }}>Profile</h1>
+          <p style={{ color: "#64748b", fontSize: 14, margin: "6px 0 0" }}>Manage your account details and password</p>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, maxWidth: 900 }}>
+        {/* Details + Update name */}
+        <div style={{ background: "#fff", borderRadius: 16, padding: 24, border: "1px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,.06)" }}>
+          <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, margin: "0 0 18px", color: "#0f172a" }}>Account Details</h3>
+          {profile && (
+            <div style={{ display: "grid", gap: 12, marginBottom: 22 }}>
+              <div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 2 }}>Email</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>{profile.email}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 2 }}>Role</div>
+                <span style={{
+                  display: "inline-block", padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                  background: profile.role === 'ADMIN' ? "#ede9fe" : "#dbeafe",
+                  color: profile.role === 'ADMIN' ? "#7c3aed" : "#2563eb"
+                }}>{profile.role}</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 2 }}>Member since</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>{new Date(profile.createdAt).toLocaleDateString()}</div>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleUpdateName}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#334155", display: "block", marginBottom: 6 }}>
+              Full Name
+            </label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} required />
+              <button disabled={loading} style={{
+                padding: "0 20px", borderRadius: 10, border: "none", cursor: "pointer", whiteSpace: "nowrap",
+                background: "#6366f1", color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: "'DM Sans', sans-serif"
+              }}>
+                {loading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Change password */}
+        <div style={{ background: "#fff", borderRadius: 16, padding: 24, border: "1px solid #f1f5f9", boxShadow: "0 2px 12px rgba(0,0,0,.06)" }}>
+          <h3 style={{ fontFamily: "'Sora', sans-serif", fontSize: 16, margin: "0 0 18px", color: "#0f172a" }}>Change Password</h3>
+          <form onSubmit={handleChangePassword} style={{ display: "grid", gap: 14 }}>
+            <div>
+              <PasswordInput label="Current Password" value={pw.current} onChange={e => setPw({ ...pw, current: e.target.value })} required />
+            </div>
+            <div>
+              <PasswordInput label="New Password" value={pw.next} onChange={e => setPw({ ...pw, next: e.target.value })} required minLength={6} />
+            </div>
+            <button disabled={loading} style={{
+              padding: "12px", borderRadius: 10, border: "none", cursor: "pointer",
+              background: "#0f172a", color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: "'DM Sans', sans-serif"
+            }}>
+              {loading ? "Updating..." : "Change Password"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
   const [token, setToken] = useState(null);
@@ -1058,7 +1214,7 @@ export default function App() {
     </>
   );
 
-  const pages = { dashboard: Dashboard, expenses: ExpensesPage, categories: CategoriesPage, budgets: BudgetsPage, reports: ReportsPage, admin: AdminPage };
+  const pages = { dashboard: Dashboard, expenses: ExpensesPage, categories: CategoriesPage, budgets: BudgetsPage, reports: ReportsPage, admin: AdminPage, profile: ProfilePage };
   const Page = pages[active];
 
   return (
@@ -1075,7 +1231,7 @@ export default function App() {
       <Sidebar active={active} setActive={setActive} user={user} onLogout={handleLogout} />
 
       <main style={{ marginLeft: 240, padding: "36px 36px 60px", minHeight: "100vh" }}>
-        <Page token={token} addToast={addToast} />
+        <Page token={token} addToast={addToast} user={user} setUser={setUser} />
       </main>
 
       <Toast toasts={toasts} remove={id => setToasts(t => t.filter(x => x.id !== id))} />
