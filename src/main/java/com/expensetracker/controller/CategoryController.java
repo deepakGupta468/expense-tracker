@@ -1,5 +1,8 @@
 package com.expensetracker.controller;
 
+import com.expensetracker.dto.request.CategoryRequest;
+import com.expensetracker.dto.response.CategoryResponse;
+import com.expensetracker.service.CategoryService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;

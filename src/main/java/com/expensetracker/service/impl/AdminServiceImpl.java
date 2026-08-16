@@ -2,6 +2,7 @@ package com.expensetracker.service.impl;
 
 import com.expensetracker.dto.response.UserResponse;
 import com.expensetracker.entity.User;
+import com.expensetracker.exception.BadRequestException;
 import com.expensetracker.exception.ResourceNotFoundException;
 import com.expensetracker.repository.BudgetRepository;
 import com.expensetracker.repository.CategoryRepository;
@@ -33,7 +34,10 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public void deactivateUser(Long userId) {
+    public void deactivateUser(Long userId, Long currentAdminId) {
+        if (userId.equals(currentAdminId)) {
+            throw new BadRequestException("You cannot deactivate your own account");
+        }
         User user = getUser(userId);
         if (user.getIsActive() != null && !user.getIsActive()) {
             return;
@@ -55,7 +59,10 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public void deleteUser(Long userId) {
+    public void deleteUser(Long userId, Long currentAdminId) {
+        if (userId.equals(currentAdminId)) {
+            throw new BadRequestException("You cannot delete your own account");
+        }
         User user = getUser(userId);
         expenseRepository.deleteByUser(user);
         budgetRepository.deleteByUser(user);

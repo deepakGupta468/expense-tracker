@@ -10,10 +10,20 @@ import ProfilePage from "./pages/ProfilePage";
 import Sidebar from "./components/Sidebar";
 import Toast from "./components/Toast";
 
+const STORAGE_TOKEN = "spendwise.token";
+const STORAGE_USER = "spendwise.user";
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
-  const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(() => localStorage.getItem(STORAGE_TOKEN) || null);
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_USER);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
   const [active, setActive] = useState("dashboard");
   const [toasts, setToasts] = useState([]);
 
@@ -23,8 +33,16 @@ export default function App() {
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
   }, []);
 
-  const handleLogin = (tok, userData) => { setToken(tok); setUser(userData); };
-  const handleLogout = () => { setToken(null); setUser(null); setActive("dashboard"); };
+  const handleLogin = (tok, userData) => {
+    setToken(tok); setUser(userData);
+    localStorage.setItem(STORAGE_TOKEN, tok);
+    localStorage.setItem(STORAGE_USER, JSON.stringify(userData));
+  };
+  const handleLogout = () => {
+    setToken(null); setUser(null); setActive("dashboard");
+    localStorage.removeItem(STORAGE_TOKEN);
+    localStorage.removeItem(STORAGE_USER);
+  };
 
   if (!token) return (
     <>

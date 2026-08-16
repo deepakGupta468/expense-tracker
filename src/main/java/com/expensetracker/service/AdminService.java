@@ -8,9 +8,9 @@ public interface AdminService {
 
     List<UserResponse> getAllUsers();
 
-    void deactivateUser(Long userId);
+    void deactivateUser(Long userId, Long currentAdminId);
 
     void activateUser(Long userId);
 
-    void deleteUser(Long userId);
+    void deleteUser(Long userId, Long currentAdminId);
 }

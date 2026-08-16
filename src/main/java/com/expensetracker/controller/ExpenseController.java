@@ -7,6 +7,10 @@ import com.expensetracker.service.ExpenseService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,9 +41,12 @@ public class ExpenseController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ExpenseResponse>> getAllExpenses(
+    public ResponseEntity<Page<ExpenseResponse>> getAllExpenses(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(expenseService.getAllExpenses(userDetails.getUsername()));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "expenseDate"));
+        return ResponseEntity.ok(expenseService.getAllExpenses(userDetails.getUsername(), pageable));
     }
 
     @GetMapping("/{id}")

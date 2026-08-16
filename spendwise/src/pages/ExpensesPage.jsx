@@ -8,19 +8,29 @@ import { Input, Select, Btn } from "../components/FormControls";
 const ExpensesPage = ({ token, addToast }) => {
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({ title: "", description: "", amount: "", expenseDate: new Date().toISOString().split("T")[0], categoryId: "" });
 
+  const PAGE_SIZE = 10;
+
   const load = useCallback(async () => {
     try {
-      const [e, c] = await Promise.all([api("/expenses", {}, token), api("/categories", {}, token)]);
-      setExpenses(e); setCategories(c);
+      const [e, c] = await Promise.all([
+        api(`/expenses?page=${page}&size=${PAGE_SIZE}`, {}, token),
+        api("/categories", {}, token),
+      ]);
+      setExpenses(e.content); setCategories(c);
+      setTotalPages(e.totalPages); setTotalElements(e.totalElements);
+      if (page > 0 && e.totalPages > 0 && page >= e.totalPages) setPage(e.totalPages - 1);
       setForm(f => f.categoryId ? f : { ...f, categoryId: c[0]?.id || "" });
     } catch (e) { addToast(e.message, "error"); }
-  }, [token, addToast]);
+  }, [token, addToast, page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -53,7 +63,7 @@ const ExpensesPage = ({ token, addToast }) => {
       }
       setShowModal(false); setEditing(null); setErrors({});
       setForm({ title: "", description: "", amount: "", expenseDate: new Date().toISOString().split("T")[0], categoryId: categories[0]?.id || "" });
-      load();
+      if (page !== 0) setPage(0); else load();
     } catch (err) { addToast(err.message, "error"); } finally { setLoading(false); }
   };
 
@@ -64,13 +74,18 @@ const ExpensesPage = ({ token, addToast }) => {
   };
 
   const fmt = (n) => `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+  const pgBtn = (disabled) => ({
+    padding: "8px 18px", borderRadius: 10, border: "none", cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13,
+    background: disabled ? "#e2e8f0" : "#6366f1", color: disabled ? "#94a3b8" : "#fff",
+  });
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, fontFamily: "'Sora', sans-serif", color: "#0f172a" }}>Expenses</h1>
-          <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>{expenses.length} total entries</p>
+          <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>{totalElements} total entries</p>
         </div>
         <Btn onClick={() => { setEditing(null); setErrors({}); setForm({ title: "", description: "", amount: "", expenseDate: new Date().toISOString().split("T")[0], categoryId: categories[0]?.id || "" }); setShowModal(true); }}>
           <Icon name="plus" size={15} /> Add Expense
@@ -121,6 +136,16 @@ const ExpensesPage = ({ token, addToast }) => {
           </table>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 18 }}>
+          <span style={{ color: "#64748b", fontSize: 13 }}>Page {page + 1} of {totalPages}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} style={pgBtn(page === 0)}>Prev</button>
+            <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={pgBtn(page >= totalPages - 1)}>Next</button>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <Modal title={editing ? "Edit Expense" : "Add Expense"} onClose={() => { setShowModal(false); setEditing(null); setErrors({}); }}>

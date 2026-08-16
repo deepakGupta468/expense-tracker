@@ -14,9 +14,9 @@ const Dashboard = ({ token, addToast }) => {
         const [r, b, e] = await Promise.all([
           api(`/reports/monthly?month=${now.getMonth() + 1}&year=${now.getFullYear()}`, {}, token),
           api("/budgets/monthly?month=" + (now.getMonth() + 1) + "&year=" + now.getFullYear(), {}, token),
-          api("/expenses", {}, token),
+          api("/expenses?page=0&size=5", {}, token),
         ]);
-        setReport(r); setBudgets(b); setExpenses(e.slice(0, 5));
+        setReport(r); setBudgets(b); setExpenses(e.content || []);
       } catch (e) { addToast(e.message, "error"); }
     };
     load();

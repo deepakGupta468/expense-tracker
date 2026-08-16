@@ -13,6 +13,8 @@ import com.expensetracker.repository.ExpenseRepository;
 import com.expensetracker.repository.UserRepository;
 import com.expensetracker.service.ExpenseService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -51,11 +53,10 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    public List<ExpenseResponse> getAllExpenses(String userEmail) {
+    public Page<ExpenseResponse> getAllExpenses(String userEmail, Pageable pageable) {
         User user = getUser(userEmail);
-        return expenseRepository.findByUserOrderByExpenseDateDesc(user).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return expenseRepository.findByUserOrderByExpenseDateDesc(user, pageable)
+                .map(this::mapToResponse);
     }
 
     @Override
