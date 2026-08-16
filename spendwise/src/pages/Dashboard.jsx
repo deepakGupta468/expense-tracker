@@ -1,26 +1,41 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
 import StatCard from "../components/StatCard";
+import Icon from "../components/Icon";
+import { Btn } from "../components/FormControls";
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 const Dashboard = ({ token, addToast }) => {
   const [report, setReport] = useState(null);
   const [budgets, setBudgets] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  useEffect(() => {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async ({ announce = false } = {}) => {
     const now = new Date();
-    const load = async () => {
-      try {
-        const [r, b, e] = await Promise.all([
-          api(`/reports/monthly?month=${now.getMonth() + 1}&year=${now.getFullYear()}`, {}, token),
-          api("/budgets/monthly?month=" + (now.getMonth() + 1) + "&year=" + now.getFullYear(), {}, token),
-          api("/expenses?page=0&size=5", {}, token),
-        ]);
-        setReport(r); setBudgets(b); setExpenses(e.content || []);
-      } catch (e) { addToast(e.message, "error"); }
-    };
-    load();
+    if (announce) setRefreshing(true);
+    try {
+      const [r, b, e] = await Promise.all([
+        api(`/reports/monthly?month=${now.getMonth() + 1}&year=${now.getFullYear()}`, {}, token),
+        api("/budgets/monthly?month=" + (now.getMonth() + 1) + "&year=" + now.getFullYear(), {}, token),
+        api("/expenses?page=0&size=5", {}, token),
+      ]);
+      setReport(r); setBudgets(b); setExpenses(e.content || []);
+
+      if (announce) addToast("Dashboard refreshed.", "success");
+
+      const over = b.filter(x => x.exceeded).length;
+      if (over > 0) {
+        addToast(`${over} budget${over > 1 ? "s are" : " is"} over the limit this month.`, "warning");
+      }
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      if (announce) setRefreshing(false);
+    }
   }, [token, addToast]);
+
+  useEffect(() => { load(); }, [load]);
 
   const fmt = (n) => n != null ? `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "₹0.00";
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -28,9 +43,14 @@ const Dashboard = ({ token, addToast }) => {
 
   return (
     <div>
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, fontFamily: "'Sora', sans-serif", color: "#0f172a" }}>Dashboard</h1>
-        <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>{months[now.getMonth()]} {now.getFullYear()} overview</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, fontFamily: "'Sora', sans-serif", color: "#0f172a" }}>Dashboard</h1>
+          <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>{months[now.getMonth()]} {now.getFullYear()} overview</p>
+        </div>
+        <Btn onClick={() => load({ announce: true })} loading={refreshing}>
+          <Icon name="refresh" size={15} /> Refresh
+        </Btn>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 28 }}>

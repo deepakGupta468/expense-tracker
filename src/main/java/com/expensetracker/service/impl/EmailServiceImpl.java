@@ -1,5 +1,6 @@
 package com.expensetracker.service.impl;
 
+import com.expensetracker.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
@@ -11,10 +12,11 @@ import java.math.BigDecimal;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class EmailServiceImpl {
+public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
 
+    @Override
     public void sendBudgetAlert(String toEmail, String fullName, String categoryName,
                                 BigDecimal monthlyLimit, BigDecimal totalSpent, int month, int year) {
         String subject = "Budget Alert: " + categoryName + " budget exceeded!";

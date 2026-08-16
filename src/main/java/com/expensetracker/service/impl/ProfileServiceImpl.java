@@ -10,8 +10,10 @@ import com.expensetracker.service.ProfileService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class ProfileServiceImpl implements ProfileService {
 
     private final UserRepository userRepository;
@@ -23,6 +25,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UserResponse getProfile(String userEmail) {
         User user = getUser(userEmail);
         return mapToResponse(user);

@@ -14,9 +14,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
@@ -37,18 +39,19 @@ public class AuthServiceImpl implements AuthService {
                 .role(Role.USER)
                 .build();
 
-        userRepository.save(user);
-        String token = jwtUtil.generateToken(user.getId());
+        User saved = userRepository.save(user);
+        String token = jwtUtil.generateToken(saved.getId());
 
         return AuthResponse.builder()
                 .token(token)
-                .email(user.getEmail())
-                .fullName(user.getFullName())
-                .role(user.getRole().name())
+                .email(saved.getEmail())
+                .fullName(saved.getFullName())
+                .role(saved.getRole().name())
                 .build();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())

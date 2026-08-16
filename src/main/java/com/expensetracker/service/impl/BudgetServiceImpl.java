@@ -15,13 +15,16 @@ import com.expensetracker.service.BudgetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class BudgetServiceImpl implements BudgetService {
 
     private final BudgetRepository budgetRepository;
@@ -32,18 +35,9 @@ public class BudgetServiceImpl implements BudgetService {
     @Override
     public BudgetResponse createBudget(BudgetRequest request, String userEmail) {
         User user = getUser(userEmail);
-        Category category = null;
+        Category category = resolveCategory(request.getCategoryId(), user);
 
-        if (request.getCategoryId() != null) {
-            category = categoryRepository.findByIdAndUser(request.getCategoryId(), user)
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-
-            budgetRepository.findByUserAndCategoryAndMonthAndYear(user, category, request.getMonth(), request.getYear())
-                    .ifPresent(b -> { throw new BadRequestException("Budget already exists for this category and period"); });
-        } else {
-            budgetRepository.findByUserAndCategoryIsNullAndMonthAndYear(user, request.getMonth(), request.getYear())
-                    .ifPresent(b -> { throw new BadRequestException("Overall budget already exists for this period"); });
-        }
+        requireNoConflict(user, category, request.getMonth(), request.getYear(), null);
 
         Budget budget = Budget.builder()
                 .monthlyLimit(request.getMonthlyLimit())
@@ -57,6 +51,7 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<BudgetResponse> getAllBudgets(String userEmail) {
         User user = getUser(userEmail);
         return budgetRepository.findByUser(user).stream()
@@ -65,6 +60,7 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<BudgetResponse> getBudgetsByMonth(int month, int year, String userEmail) {
         User user = getUser(userEmail);
         return budgetRepository.findByUserAndMonthAndYear(user, month, year).stream()
@@ -78,9 +74,16 @@ public class BudgetServiceImpl implements BudgetService {
         Budget budget = budgetRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found with id: " + id));
 
+        Category category = resolveCategory(request.getCategoryId(), user);
+
+        // Moving a budget to a different category/period must not collide with
+        // one that already covers that slot.
+        requireNoConflict(user, category, request.getMonth(), request.getYear(), budget.getId());
+
         budget.setMonthlyLimit(request.getMonthlyLimit());
         budget.setMonth(request.getMonth());
         budget.setYear(request.getYear());
+        budget.setCategory(category);
 
         return mapToResponse(budgetRepository.save(budget), user);
     }
@@ -91,6 +94,31 @@ public class BudgetServiceImpl implements BudgetService {
         Budget budget = budgetRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found with id: " + id));
         budgetRepository.delete(budget);
+    }
+
+    /** null categoryId means an overall (all-categories) budget. */
+    private Category resolveCategory(Long categoryId, User user) {
+        if (categoryId == null) {
+            return null;
+        }
+        return categoryRepository.findByIdAndUser(categoryId, user)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+    }
+
+    private void requireNoConflict(User user, Category category, int month, int year, Long excludeId) {
+        Optional<Budget> existing = category != null
+                ? budgetRepository.findByUserAndCategoryAndMonthAndYear(user, category, month, year)
+                : budgetRepository.findByUserAndCategoryIsNullAndMonthAndYear(user, month, year);
+
+        boolean conflict = existing
+                .filter(b -> excludeId == null || !b.getId().equals(excludeId))
+                .isPresent();
+
+        if (conflict) {
+            throw new BadRequestException(category != null
+                    ? "A budget for this category and period already exists"
+                    : "An overall budget for this period already exists");
+        }
     }
 
     private User getUser(String email) {

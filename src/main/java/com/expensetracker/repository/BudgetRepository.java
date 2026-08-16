@@ -16,6 +16,9 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
 
     void deleteByUser(User user);
 
+    /** Budgets point at a category with a plain FK, so they must go before the category does. */
+    void deleteByUserAndCategory(User user, Category category);
+
     List<Budget> findByUserAndMonthAndYear(User user, int month, int year);
 
     Optional<Budget> findByUserAndCategoryAndMonthAndYear(

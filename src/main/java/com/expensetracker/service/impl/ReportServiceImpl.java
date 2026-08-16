@@ -10,6 +10,7 @@ import com.expensetracker.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,18 +21,19 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ReportServiceImpl implements ReportService {
 
     private final ExpenseRepository expenseRepository;
     private final UserRepository userRepository;
-    private final ExpenseServiceImpl expenseService;
+    private final ExpenseMapper expenseMapper;
 
     @Override
     public ReportResponse getDailyReport(LocalDate date, String userEmail) {
         User user = getUser(userEmail);
         List<Expense> expenses = expenseRepository.findByUserAndExpenseDateOrderByExpenseDateDesc(user, date);
         List<ExpenseResponse> expenseResponses = expenses.stream()
-                .map(expenseService::mapToResponse).collect(Collectors.toList());
+                .map(expenseMapper::toResponse).collect(Collectors.toList());
 
         BigDecimal total = expenses.stream()
                 .map(Expense::getAmount)
@@ -53,7 +55,7 @@ public class ReportServiceImpl implements ReportService {
         User user = getUser(userEmail);
         List<Expense> expenses = expenseRepository.findByUserAndMonthAndYear(user, year, month);
         List<ExpenseResponse> expenseResponses = expenses.stream()
-                .map(expenseService::mapToResponse).collect(Collectors.toList());
+                .map(expenseMapper::toResponse).collect(Collectors.toList());
 
         BigDecimal total = expenseRepository.sumByUserAndMonthAndYear(user, year, month);
         if (total == null) total = BigDecimal.ZERO;
@@ -75,7 +77,7 @@ public class ReportServiceImpl implements ReportService {
         List<Expense> expenses = expenseRepository
                 .findByUserAndExpenseDateBetweenOrderByExpenseDateDesc(user, startDate, endDate);
         List<ExpenseResponse> expenseResponses = expenses.stream()
-                .map(expenseService::mapToResponse).collect(Collectors.toList());
+                .map(expenseMapper::toResponse).collect(Collectors.toList());
 
         BigDecimal total = expenseRepository.sumByUserAndDateRange(user, startDate, endDate);
         if (total == null) total = BigDecimal.ZERO;

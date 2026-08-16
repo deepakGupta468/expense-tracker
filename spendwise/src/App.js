@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { setUnauthorizedHandler } from "./api";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import ExpensesPage from "./pages/ExpensesPage";
@@ -12,6 +13,8 @@ import Toast from "./components/Toast";
 
 const STORAGE_TOKEN = "spendwise.token";
 const STORAGE_USER = "spendwise.user";
+
+const TOAST_DURATION = { error: 6000, warning: 5500, info: 4500, success: 4000 };
 
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
@@ -27,28 +30,69 @@ export default function App() {
   const [active, setActive] = useState("dashboard");
   const [toasts, setToasts] = useState([]);
 
+  // Date.now() collides when several toasts fire in the same tick, which gives
+  // React duplicate keys — a counter cannot.
+  const toastId = useRef(0);
+  const timers = useRef(new Map());
+
+  const removeToast = useCallback(id => {
+    setToasts(t => t.filter(x => x.id !== id));
+    const timer = timers.current.get(id);
+    if (timer) { clearTimeout(timer); timers.current.delete(id); }
+  }, []);
+
   const addToast = useCallback((message, type = "success") => {
-    const id = Date.now();
+    if (!message) return;
+    const id = ++toastId.current;
     setToasts(t => [...t, { id, message, type }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+    const timer = setTimeout(() => {
+      setToasts(t => t.filter(x => x.id !== id));
+      timers.current.delete(id);
+    }, TOAST_DURATION[type] || TOAST_DURATION.success);
+    timers.current.set(id, timer);
+  }, []);
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => { pending.forEach(clearTimeout); pending.clear(); };
+  }, []);
+
+  const clearSession = useCallback(() => {
+    setToken(null); setUser(null); setActive("dashboard");
+    localStorage.removeItem(STORAGE_TOKEN);
+    localStorage.removeItem(STORAGE_USER);
   }, []);
 
   const handleLogin = (tok, userData) => {
     setToken(tok); setUser(userData);
     localStorage.setItem(STORAGE_TOKEN, tok);
     localStorage.setItem(STORAGE_USER, JSON.stringify(userData));
+    addToast(`Welcome, ${userData.fullName || userData.email}!`, "success");
   };
+
   const handleLogout = () => {
-    setToken(null); setUser(null); setActive("dashboard");
-    localStorage.removeItem(STORAGE_TOKEN);
-    localStorage.removeItem(STORAGE_USER);
+    clearSession();
+    addToast("Signed out. See you soon!", "info");
   };
+
+  // A dead token can surface from any page; handle it once, centrally.
+  const expiring = useRef(false);
+  useEffect(() => {
+    setUnauthorizedHandler(message => {
+      if (expiring.current) return;
+      expiring.current = true;
+      clearSession();
+      addToast(message || "Your session has expired. Please sign in again.", "warning");
+      setTimeout(() => { expiring.current = false; }, 1000);
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession, addToast]);
 
   if (!token) return (
     <>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap'); * { box-sizing: border-box; }`}</style>
-      <AuthPage onLogin={handleLogin} />
-      <Toast toasts={toasts} remove={id => setToasts(t => t.filter(x => x.id !== id))} />
+      <AuthPage onLogin={handleLogin} addToast={addToast} />
+      <Toast toasts={toasts} remove={removeToast} />
     </>
   );
 
@@ -72,7 +116,7 @@ export default function App() {
         <Page token={token} addToast={addToast} user={user} setUser={setUser} />
       </main>
 
-      <Toast toasts={toasts} remove={id => setToasts(t => t.filter(x => x.id !== id))} />
+      <Toast toasts={toasts} remove={removeToast} />
     </div>
   );
 }

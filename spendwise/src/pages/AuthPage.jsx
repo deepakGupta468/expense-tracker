@@ -1,10 +1,10 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { api } from "../api";
 import Icon from "../components/Icon";
 import { Input, PasswordInput, Btn } from "../components/FormControls";
 
 // ─── AUTH PAGE ───────────────────────────────────────────────────────────────
-const AuthPage = ({ onLogin }) => {
+const AuthPage = ({ onLogin, addToast }) => {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
   const [errors, setErrors] = useState({});
@@ -28,10 +28,13 @@ const AuthPage = ({ onLogin }) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    if (Object.keys(errs).length > 0) {
+      addToast?.("Please fix the highlighted fields before continuing.", "warning");
+      return;
+    }
     setLoading(true); setError("");
+    const isLogin = mode === "login";
     try {
-      const isLogin = mode === "login";
       const body = isLogin
         ? { email: form.email.trim(), password: form.password }
         : { fullName: form.fullName.trim(), email: form.email.trim(), password: form.password };
@@ -39,9 +42,12 @@ const AuthPage = ({ onLogin }) => {
         isLogin ? "/auth/login" : "/auth/register",
         { method: "POST", body: JSON.stringify(body) }
       );
+      if (!isLogin) addToast?.("Account created successfully.", "success");
+      // handleLogin raises the welcome toast once the session is stored.
       onLogin(data.token, data);
     } catch (err) {
       setError(err.message);
+      addToast?.(err.message, "error");
     } finally {
       setLoading(false);
     }

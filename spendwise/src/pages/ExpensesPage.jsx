@@ -29,6 +29,7 @@ const ExpensesPage = ({ token, addToast }) => {
       setTotalPages(e.totalPages); setTotalElements(e.totalElements);
       if (page > 0 && e.totalPages > 0 && page >= e.totalPages) setPage(e.totalPages - 1);
       setForm(f => f.categoryId ? f : { ...f, categoryId: c[0]?.id || "" });
+      if (c.length === 0) addToast("No categories yet — add one before recording expenses.", "info");
     } catch (e) { addToast(e.message, "error"); }
   }, [token, addToast, page]);
 
@@ -51,15 +52,23 @@ const ExpensesPage = ({ token, addToast }) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    if (Object.keys(errs).length > 0) {
+      addToast("Please fix the highlighted fields before saving.", "warning");
+      return;
+    }
+    if (categories.length === 0) {
+      addToast("Create a category first — every expense needs one.", "warning");
+      return;
+    }
     setLoading(true);
+    const title = form.title.trim();
     try {
       if (editing) {
-        await api(`/expenses/${editing.id}`, { method: "PUT", body: JSON.stringify({ ...form, title: form.title.trim(), amount: parseFloat(form.amount), categoryId: parseInt(form.categoryId) }) }, token);
-        addToast("Expense updated!", "success");
+        await api(`/expenses/${editing.id}`, { method: "PUT", body: JSON.stringify({ ...form, title, amount: parseFloat(form.amount), categoryId: parseInt(form.categoryId) }) }, token);
+        addToast(`"${title}" updated.`, "success");
       } else {
-        await api("/expenses", { method: "POST", body: JSON.stringify({ ...form, title: form.title.trim(), amount: parseFloat(form.amount), categoryId: parseInt(form.categoryId) }) }, token);
-        addToast("Expense added!", "success");
+        await api("/expenses", { method: "POST", body: JSON.stringify({ ...form, title, amount: parseFloat(form.amount), categoryId: parseInt(form.categoryId) }) }, token);
+        addToast(`"${title}" added for ₹${parseFloat(form.amount).toLocaleString("en-IN")}.`, "success");
       }
       setShowModal(false); setEditing(null); setErrors({});
       setForm({ title: "", description: "", amount: "", expenseDate: new Date().toISOString().split("T")[0], categoryId: categories[0]?.id || "" });
@@ -67,10 +76,16 @@ const ExpensesPage = ({ token, addToast }) => {
     } catch (err) { addToast(err.message, "error"); } finally { setLoading(false); }
   };
 
-  const del = async (id) => {
-    if (!window.confirm("Delete this expense?")) return;
-    try { await api(`/expenses/${id}`, { method: "DELETE" }, token); addToast("Deleted!", "success"); load(); }
-    catch (e) { addToast(e.message, "error"); }
+  const del = async (expense) => {
+    if (!window.confirm(`Delete "${expense.title}"? This cannot be undone.`)) {
+      addToast("Delete cancelled.", "info");
+      return;
+    }
+    try {
+      await api(`/expenses/${expense.id}`, { method: "DELETE" }, token);
+      addToast(`"${expense.title}" deleted.`, "success");
+      load();
+    } catch (e) { addToast(e.message, "error"); }
   };
 
   const fmt = (n) => `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
@@ -124,7 +139,7 @@ const ExpensesPage = ({ token, addToast }) => {
                         style={{ padding: "6px 10px", borderRadius: 8, border: "none", cursor: "pointer", background: "#f0f9ff", color: "#0ea5e9" }}>
                         <Icon name="edit" size={14} />
                       </button>
-                      <button onClick={() => del(e.id)}
+                      <button onClick={() => del(e)}
                         style={{ padding: "6px 10px", borderRadius: 8, border: "none", cursor: "pointer", background: "#fff1f2", color: "#f43f5e" }}>
                         <Icon name="trash" size={14} />
                       </button>

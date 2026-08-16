@@ -7,13 +7,25 @@ import { Btn } from "../components/FormControls";
 // ─── ADMIN PAGE ────────────────────────────────────────────────────────────
 const AdminPage = ({ token, addToast }) => {
     const [users, setUsers] = useState([]);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const fetchUsers = useCallback(async () => {
+    const fetchUsers = useCallback(async ({ announce = false } = {}) => {
+        if (announce) setRefreshing(true);
         try {
             const response = await api('/admin/users', {}, token);
             setUsers(response);
+            if (announce) {
+                const inactive = response.filter(u => !u.isActive).length;
+                addToast(
+                    `${response.length} user${response.length === 1 ? "" : "s"} loaded` +
+                    (inactive > 0 ? ` — ${inactive} inactive.` : "."),
+                    "success"
+                );
+            }
         } catch (error) {
             addToast(error.message, "error");
+        } finally {
+            if (announce) setRefreshing(false);
         }
     }, [token, addToast]);
 
@@ -21,33 +33,39 @@ const AdminPage = ({ token, addToast }) => {
         fetchUsers();
     }, [fetchUsers]);
 
-    const handleDeactivate = async (userId) => {
-        if (!window.confirm("Deactivate this user?")) return;
+    const handleDeactivate = async (user) => {
+        if (!window.confirm(`Deactivate ${user.fullName}?\n\nThey will be signed out and cannot sign back in until reactivated.`)) {
+            addToast("Deactivation cancelled.", "info");
+            return;
+        }
         try {
-            await api(`/admin/users/${userId}/deactivate`, { method: 'PUT' }, token);
-            setUsers(users.map(user => user.id === userId ? { ...user, isActive: false } : user));
-            addToast("User deactivated", "success");
+            await api(`/admin/users/${user.id}/deactivate`, { method: 'PUT' }, token);
+            setUsers(users.map(u => u.id === user.id ? { ...u, isActive: false } : u));
+            addToast(`${user.fullName} deactivated.`, "success");
         } catch (error) {
             addToast(error.message, "error");
         }
     };
 
-    const handleActivate = async (userId) => {
+    const handleActivate = async (user) => {
         try {
-            await api(`/admin/users/${userId}/activate`, { method: 'PUT' }, token);
-            setUsers(users.map(user => user.id === userId ? { ...user, isActive: true } : user));
-            addToast("User activated", "success");
+            await api(`/admin/users/${user.id}/activate`, { method: 'PUT' }, token);
+            setUsers(users.map(u => u.id === user.id ? { ...u, isActive: true } : u));
+            addToast(`${user.fullName} reactivated.`, "success");
         } catch (error) {
             addToast(error.message, "error");
         }
     };
 
-    const handleDelete = async (userId) => {
-        if (!window.confirm("Delete this user permanently? This removes all their data.")) return;
+    const handleDelete = async (user) => {
+        if (!window.confirm(`Delete ${user.fullName} (${user.email}) permanently?\n\nAll their expenses, categories and budgets go with them. This cannot be undone.`)) {
+            addToast("Delete cancelled.", "info");
+            return;
+        }
         try {
-            await api(`/admin/users/${userId}`, { method: 'DELETE' }, token);
-            setUsers(users.filter(user => user.id !== userId));
-            addToast("User deleted", "success");
+            await api(`/admin/users/${user.id}`, { method: 'DELETE' }, token);
+            setUsers(users.filter(u => u.id !== user.id));
+            addToast(`${user.fullName} and all their data deleted.`, "success");
         } catch (error) {
             addToast(error.message, "error");
         }
@@ -62,7 +80,9 @@ const AdminPage = ({ token, addToast }) => {
                     <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, fontFamily: "'Sora', sans-serif", color: "#0f172a" }}>Admin</h1>
                     <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>User Management</p>
                 </div>
-                <Btn onClick={fetchUsers}><Icon name="report" size={15} /> Refresh</Btn>
+                <Btn onClick={() => fetchUsers({ announce: true })} loading={refreshing}>
+                    <Icon name="refresh" size={15} /> Refresh
+                </Btn>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
@@ -113,15 +133,15 @@ const AdminPage = ({ token, addToast }) => {
                                     <td style={{ padding: "14px 20px" }}>
                                         <div style={{ display: "flex", gap: 6 }}>
                                             {u.isActive ? (
-                                                <button onClick={() => handleDeactivate(u.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: "#fff7ed", color: "#f59e0b", fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600 }}>
+                                                <button onClick={() => handleDeactivate(u)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: "#fff7ed", color: "#f59e0b", fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600 }}>
                                                     Deactivate
                                                 </button>
                                             ) : (
-                                                <button onClick={() => handleActivate(u.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: "#ecfdf5", color: "#059669", fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600 }}>
+                                                <button onClick={() => handleActivate(u)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: "#ecfdf5", color: "#059669", fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600 }}>
                                                     Activate
                                                 </button>
                                             )}
-                                            <button onClick={() => handleDelete(u.id)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: "#fff1f2", color: "#f43f5e", fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600 }}>
+                                            <button onClick={() => handleDelete(u)} style={{ padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: "#fff1f2", color: "#f43f5e", fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600 }}>
                                                 Delete
                                             </button>
                                         </div>

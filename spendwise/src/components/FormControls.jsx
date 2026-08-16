@@ -58,11 +58,14 @@ const Btn = ({ children, variant = "primary", loading, ...props }) => {
     secondary: { background: "#f1f5f9", color: "#374151", border: "1.5px solid #e2e8f0" },
     danger: { background: "#fee2e2", color: "#dc2626", border: "1.5px solid #fca5a5" },
   };
+  // Disable while loading so a slow request cannot be submitted twice.
+  const disabled = props.disabled || loading;
   return (
-    <button {...props} style={{
-      padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+    <button {...props} disabled={disabled} style={{
+      padding: "10px 20px", borderRadius: 10, cursor: disabled ? "not-allowed" : "pointer",
+      fontFamily: "'DM Sans', sans-serif",
       fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6,
-      transition: "all .2s", opacity: props.disabled ? .6 : 1,
+      transition: "all .2s", opacity: disabled ? .6 : 1,
       ...styles[variant], ...props.style
     }}>
       {loading ? "..." : children}

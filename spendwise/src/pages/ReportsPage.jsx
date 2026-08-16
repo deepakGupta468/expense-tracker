@@ -11,7 +11,25 @@ const ReportsPage = ({ token, addToast }) => {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // The range endpoint rejects these server-side too, but catching them here
+  // saves a round trip and points at the offending field.
+  const validate = () => {
+    if (type === "monthly") {
+      const year = parseInt(params.year, 10);
+      if (!params.year || isNaN(year) || year < 2000 || year > 2099) return "Enter a year between 2000 and 2099.";
+    }
+    if (type === "daily" && !params.date) return "Pick a date to report on.";
+    if (type === "range") {
+      if (!params.startDate || !params.endDate) return "Pick both a start and an end date.";
+      if (params.startDate > params.endDate) return "Start date cannot be after end date.";
+    }
+    return null;
+  };
+
   const generate = async () => {
+    const problem = validate();
+    if (problem) { addToast(problem, "warning"); return; }
+
     setLoading(true);
     try {
       let r;
@@ -19,6 +37,15 @@ const ReportsPage = ({ token, addToast }) => {
       else if (type === "daily") r = await api(`/reports/daily?date=${params.date}`, {}, token);
       else r = await api(`/reports/range?startDate=${params.startDate}&endDate=${params.endDate}`, {}, token);
       setReport(r);
+
+      if (r.totalTransactions === 0) {
+        addToast("No expenses found for this period.", "info");
+      } else {
+        addToast(
+          `Report ready: ${r.totalTransactions} transaction${r.totalTransactions > 1 ? "s" : ""}, ${fmt(r.totalAmount)} total.`,
+          "success"
+        );
+      }
     } catch (e) { addToast(e.message, "error"); } finally { setLoading(false); }
   };
 

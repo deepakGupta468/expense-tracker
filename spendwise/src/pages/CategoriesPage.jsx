@@ -33,25 +33,46 @@ const CategoriesPage = ({ token, addToast }) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    if (Object.keys(errs).length > 0) {
+      addToast("Please fix the highlighted fields before saving.", "warning");
+      return;
+    }
     setLoading(true);
     try {
       const payload = { ...form, name: form.name.trim() };
       if (editing) {
         await api(`/categories/${editing.id}`, { method: "PUT", body: JSON.stringify(payload) }, token);
-        addToast("Category updated!", "success");
+        addToast(`Category "${payload.name}" updated.`, "success");
       } else {
         await api("/categories", { method: "POST", body: JSON.stringify(payload) }, token);
-        addToast("Category created!", "success");
+        addToast(`Category "${payload.name}" created.`, "success");
       }
       setShowModal(false); setEditing(null); setErrors({}); setForm({ name: "", description: "", icon: "" }); load();
     } catch (err) { addToast(err.message, "error"); } finally { setLoading(false); }
   };
 
-  const del = async (id) => {
-    if (!window.confirm("Delete this category?")) return;
-    try { await api(`/categories/${id}`, { method: "DELETE" }, token); addToast("Deleted!", "success"); load(); }
-    catch (e) { addToast(e.message, "error"); }
+  const del = async (cat) => {
+    // Deleting a category cascades to its expenses and drops its budgets, so
+    // say so plainly before the user commits to it.
+    const count = cat.expenseCount || 0;
+    const warning = count > 0
+      ? `Delete "${cat.name}"?\n\nThis will also permanently delete ${count} expense${count > 1 ? "s" : ""} filed under it, and any budget set for it.`
+      : `Delete "${cat.name}"?\n\nAny budget set for this category will be removed too.`;
+
+    if (!window.confirm(warning)) {
+      addToast("Delete cancelled.", "info");
+      return;
+    }
+    try {
+      await api(`/categories/${cat.id}`, { method: "DELETE" }, token);
+      addToast(
+        count > 0
+          ? `"${cat.name}" and its ${count} expense${count > 1 ? "s" : ""} deleted.`
+          : `"${cat.name}" deleted.`,
+        "success"
+      );
+      load();
+    } catch (e) { addToast(e.message, "error"); }
   };
 
   const palette = ["#6366f1", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
@@ -84,12 +105,15 @@ const CategoriesPage = ({ token, addToast }) => {
             </div>
             <div style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", marginBottom: 4 }}>{c.name}</div>
             {c.description && <div style={{ color: "#94a3b8", fontSize: 13 }}>{c.description}</div>}
+            <div style={{ color: "#64748b", fontSize: 12, marginTop: 6, fontWeight: 500 }}>
+              {c.expenseCount || 0} expense{(c.expenseCount || 0) === 1 ? "" : "s"}
+            </div>
             <div style={{ display: "flex", gap: 6, marginTop: 16 }}>
               <button onClick={() => { setEditing(c); setErrors({}); setForm({ name: c.name, description: c.description || "", icon: c.icon || "" }); setShowModal(true); }}
                 style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "1.5px solid #e2e8f0", cursor: "pointer", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 500 }}>
                 Edit
               </button>
-              <button onClick={() => del(c.id)}
+              <button onClick={() => del(c)}
                 style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "1.5px solid #fee2e2", cursor: "pointer", background: "#fff", color: "#f43f5e", fontSize: 13, fontWeight: 500 }}>
                 Delete
               </button>

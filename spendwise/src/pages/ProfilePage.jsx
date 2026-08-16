@@ -26,17 +26,26 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
 
   const handleUpdateName = async (e) => {
     e.preventDefault();
-    if (!name.trim()) { setNameError("Full name is required"); return; }
-    if (name.trim().length < 2) { setNameError("Full name must be at least 2 characters"); return; }
-    if (name.trim().length > 100) { setNameError("Full name must not exceed 100 characters"); return; }
+    const trimmed = name.trim();
+    const problem = !trimmed ? "Full name is required"
+      : trimmed.length < 2 ? "Full name must be at least 2 characters"
+      : trimmed.length > 100 ? "Full name must not exceed 100 characters"
+      : null;
+    if (problem) { setNameError(problem); addToast(problem, "warning"); return; }
+
+    if (profile && trimmed === profile.fullName) {
+      addToast("That is already your name — nothing to save.", "info");
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await api('/profile', { method: 'PUT', body: JSON.stringify({ fullName: name.trim() }) }, token);
+      const res = await api('/profile', { method: 'PUT', body: JSON.stringify({ fullName: trimmed }) }, token);
       setProfile(res);
       setUser({ ...user, fullName: res.fullName });
       setName(res.fullName);
       setNameError("");
-      addToast("Profile updated", "success");
+      addToast(`Name updated to "${res.fullName}".`, "success");
     } catch (err) {
       addToast(err.message, "error");
     } finally {
@@ -52,7 +61,10 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
     else if (pw.next.length < 6) errs.next = "New password must be at least 6 characters";
     else if (pw.current === pw.next) errs.next = "New password must be different from current password";
     setPwErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    if (Object.keys(errs).length > 0) {
+      addToast(errs.current || errs.next, "warning");
+      return;
+    }
     setLoading(true);
     try {
       await api('/profile/password', {
@@ -61,7 +73,7 @@ const ProfilePage = ({ token, addToast, user, setUser }) => {
       }, token);
       setPw({ current: "", next: "" });
       setPwErrors({});
-      addToast("Password changed", "success");
+      addToast("Password changed. Use it the next time you sign in.", "success");
     } catch (err) {
       addToast(err.message, "error");
     } finally {

@@ -16,5 +16,7 @@ public class CategoryResponse {
     private String name;
     private String description;
     private String icon;
+    /** Expenses filed under this category -- they are deleted along with it. */
+    private long expenseCount;
     private LocalDateTime createdAt;
 }
